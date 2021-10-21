@@ -1,0 +1,110 @@
+//------------------------------------------------
+//--- 010 Editor v10.0.1 Binary Template
+//
+//      File: 
+//   Authors: 
+//   Version: 
+//   Purpose: 
+//  Category: smolsync
+// File Mask: *.diff
+//  ID Bytes: 73 6d 6f 6c 64 69 66 66 //smoldiff
+//   History: 
+//------------------------------------------------
+
+typedef struct {
+    int len;
+    char s[len];
+} str <read=read_STRING>;
+
+wstring read_STRING(local str &s) {
+    local string res = "";
+    SPrintf(res, "<%d> %s", s.len, s.s);
+    return StringToWString(res, CHARSET_UTF8);
+}
+
+string read_SIZE(local int64 size_i) {
+    local string res = "";
+    local double size = size_i;
+    if (Abs(size) < 1024) {
+        SPrintf(res, "%Ld b", size);
+    }
+    local string units = "kmgtp";
+    local int unit = 0;
+    while (Abs(size) > 1024 && unit != 5) {
+        size /= 1024;
+        unit += 1;
+    }
+    SPrintf(res, "%.1lf %sb", size, SubStr(units, unit-1, 1));
+    return res;
+}
+
+string read_double_time(local double time) {
+    local string res = "";
+    SPrintf(res, "%lf", time - (int)time);
+    res = SubStr(res, 1);
+    SPrintf(res, "%s%s", TimeTToString((time_t)time), res);
+    return res;
+}
+
+typedef struct {
+    str name;
+    time_t modified;
+    int64 size <read=read_SIZE>;
+    double created <read=read_double_time>;
+    uchar has_hash;
+    if (has_hash)
+        char hash[40];
+}  File <read=read_FILE>;
+
+wstring read_FILE(local File &file) {
+    return StringToWString(file.name.s, CHARSET_UTF8);
+}
+
+typedef struct {
+    char status;
+    if (status == 'D') {
+        File old <open=true>;
+    } else if (status == 'A') {
+        File new <open=true>;
+    } else if (status == 'C') {
+        File new <open=true>;
+        str from_path;
+    } else if (status == 'M') {
+        File new <open=true>;
+        File old <open=true>;
+    } else if (status == '-') {
+        File new <open=true>;
+    }
+} FileDiff;
+
+wstring read_FILEDIFF(local FileDiff &file) {
+    local wstring res = "";
+    local string filename;
+    if (exists(file.new))
+        filename = file.new.name;
+    else
+        filename = file.old.name;
+    SPrintf(res, "%c %s", file.status, StringToWString(file.name.s, CHARSET_UTF8));
+    return res;
+}
+
+struct ImageDiff;
+struct ImageDiff {
+    str name;
+    int64 copied_size <read=read_SIZE>;
+    int64 change_in_size <read=read_SIZE>;
+    uint files_count;
+    FileDiff files[files_count] <optimize=false>;
+    uint folder_count;
+    if (folder_count)
+        ImageDiff folders[folder_count] <optimize=false, read=read_FOLDER>;
+};
+
+wstring read_FOLDER(local ImageDiff &image) {
+    return StringToWString(image.name.s, CHARSET_UTF8);
+}
+
+char signature[8];
+Assert(!Strcmp(signature, "smoldiff"), "signature is wrong");
+
+ImageDiff root <open=true>;

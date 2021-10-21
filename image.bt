@@ -1,0 +1,81 @@
+//------------------------------------------------
+//--- 010 Editor v10.0.1 Binary Template
+//
+//      File: 
+//   Authors: 
+//   Version: 
+//   Purpose: 
+//  Category: smolsync
+// File Mask: *.image
+//  ID Bytes: 73 6d 6f 6c 69 6d 67 20 //smolimg 
+//   History: 
+//------------------------------------------------
+
+typedef struct {
+    int len;
+    char s[len];
+} str <read=read_STRING>;
+
+string read_STRING(local str &s) {
+    local string res = "";
+    SPrintf(res, "<%d> %s", s.len, s.s);
+    return res;
+}
+
+string read_SIZE(local int64 size_i) {
+    local string res = "";
+    local double size = size_i;
+    if (Abs(size) < 1024) {
+        SPrintf(res, "%Ld b", size);
+    }
+    local string units = "kmgtp";
+    local int unit = 0;
+    while (Abs(size) > 1024 && unit != 5) {
+        size /= 1024;
+        unit += 1;
+    }
+    SPrintf(res, "%.1lf %sb", size, SubStr(units, unit-1, 1));
+    return res;
+}
+
+string read_double_time(local double time) {
+    local string res = "";
+    SPrintf(res, "%lf", time - (int)time);
+    res = SubStr(res, 1);
+    SPrintf(res, "%s%s", TimeTToString((time_t)time), res);
+    return res;
+}
+
+typedef struct {
+    str name;
+    time_t modified;
+    int64 size <read=read_SIZE>;
+    double created <read=read_double_time>;
+    uchar has_hash;
+    if (has_hash)
+        char hash[40];
+}  File <read=read_FILE>;
+
+wstring read_FILE(local File &file) {
+    return StringToWString(file.name.s, CHARSET_UTF8);
+}
+
+struct Image;
+struct Image {
+    str name;
+    int64 size <read=read_SIZE>;
+    uint files_count;
+    File files[files_count] <optimize=false>;
+    uint folder_count;
+    if (folder_count)
+        Image folders[folder_count] <optimize=false, read=read_FOLDER>;
+};
+
+wstring read_FOLDER(local Image &image) {
+    return StringToWString(image.name.s, CHARSET_UTF8);
+}
+
+char signature[8];
+Assert(!Strcmp(signature, "smolimg "), "signature is wrong");
+
+Image root <open=true>;

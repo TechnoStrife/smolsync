@@ -1,6 +1,7 @@
 import os
 import stat
 from pathlib import Path, PurePath
+from time import time
 
 from util import RootPath, check_signature, human_readable_size, print_tree_line
 from util.struct_file import StructFile
@@ -35,6 +36,15 @@ class FolderImage:
                     self.files.append(file)
                     self.size += file.size
         return self
+
+    def calc_hash(self):
+        for file in self.files:
+            t = time()
+            print(file.path, end=' ')
+            file.calc_hash()
+            print(file.hash, time() - t)
+        for folder in self.folders:
+            folder.calc_hash()
 
     @classmethod
     def load(cls, file: StructFile, path: RootPath) -> 'FolderImage':

@@ -3,13 +3,13 @@ import json
 import zipfile
 from io import BytesIO
 from pathlib import PurePath
-from typing import Union, Tuple, Optional
+from typing import Tuple, Optional, List
 
 import zipp
 from pathspec import PathSpec
 
 from args import parser, save_action, status_action, read_action, \
-    ArgsType, check_action, apply_action
+    ArgsType, check_action, apply_action, compare_action
 from const import SETTINGS_NAME, SmolSyncException, Signatures
 from image import FolderImage, FolderDiff
 from summary.changes_summary import ChangesSummary
@@ -47,20 +47,23 @@ def load_targets(args: ArgsType):
         for name, target_settings in settings.items()
     ]
     for target in targets:
-        image_file = target.image_path(path)
-        if not image_file.exists() or not image_file.is_file():
-            continue
-
-        with image_file.open('rb') as image:
-            target.old_image = FolderImage.load(StructFile(image, str(image_file)), target.root)
+        target.load_old_image(path)
 
     return targets
 
 
+def make_images(targets: List[Target], settings_path):
+    for target in targets:
+        target.load_hash_storage(settings_path)
+        target.make_image(show_progress=True)
+        target.save_hash_storage(settings_path)
+
+
 def status(args: ArgsType):
     targets = load_targets(args)
+    make_images(targets, args.settings)
+
     for target in targets:
-        target.make_image()
         print(f'Target {target.name}:')
         if target.old_image is None:
             print('No previously saved state')
@@ -78,6 +81,33 @@ def status(args: ArgsType):
             target.image.save(StructFile(filename.open('wb'), str(filename)))
 
 
+def compare(args: ArgsType):
+    root, archive = read_path_for_targets(args, '.image')
+
+    targets = load_targets(args)
+    make_images(targets, args.settings)
+
+    for target in targets:
+        with (root / target.image_name()).open('rb') as f:
+            image = FolderImage.load(StructFile(f), target.root)
+
+        print(f'Target {target.name}:')
+        diff = FolderDiff.compare(target.image, image)
+        if not args.verbose and not diff.has_changes():
+            print('No changes')
+        else:
+            diff.print(verbose=args.verbose, hide=args.hide, hide_files=args.quiet)
+
+    if archive:
+        archive.close()
+
+    # if args.save:
+    #     for target in targets:
+    #         filename = target.image_path(args.settings)
+    #         target.image.calc_hash()
+    #         target.image.save(StructFile(filename.open('wb'), str(filename)))
+
+
 def save(args: ArgsType):
     archive = None
     if args.zip:
@@ -85,15 +115,16 @@ def save(args: ArgsType):
             args.path /= f'smoldiff_{datetime.date.today().strftime("%d.%m.%y")}.zip'
         elif not args.path.exists() or args.path.is_file():
             if args.path.suffix != '.zip':
-                raise SmolSyncException(f'File {args.path} does not end in ".zip". If you meant a directory, create it first')
+                raise SmolSyncException(f'File {args.path} does not end in ".zip". '
+                                        f'If you meant a directory, create it first')
         else:
             raise SmolSyncException(f"{args.path} isn't a file or a directory")
         archive = zipfile.ZipFile(args.path, 'w', zipfile.ZIP_DEFLATED)
 
     targets = load_targets(args)
+    make_images(targets, args.settings)
 
     for target in targets:
-        target.make_image()
         print(f'Target {target.name}:')
         if target.old_image is None:
             print('No previously saved state')
@@ -123,27 +154,27 @@ def save(args: ArgsType):
         archive.close()
 
 
-def read_path_for_targets(args: ArgsType) -> Tuple[Union[RootPath, zipp.Path], Optional[zipfile.ZipFile]]:
+def read_path_for_targets(args: ArgsType, suffix: str = '.diff') -> Tuple[RootPath | zipp.Path, Optional[zipfile.ZipFile]]:
     root = RootPath(args.path)
     archive = None
     if args.path.suffix == '.zip' and args.path.is_file():
         archive = zipfile.ZipFile(args.path, 'r', zipfile.ZIP_DEFLATED)
         root = zipp.Path(archive)
     if archive is None and args.path.is_file():
-        assert args.path.suffix == '.diff'
+        assert args.path.suffix == suffix
         args.targets = [args.path.stem]
         root = RootPath(args.path.parent)
     elif args.targets == 'all':
         args.targets = ''
         for file in root.iterdir():
-            if file.suffix == '.diff':
+            if file.suffix == suffix:
                 if args.targets != '':
                     args.targets += ';'
                 args.targets += file.stem
     else:
         selected_targets = set(args.targets.split(';'))
         for file in root.iterdir():
-            if file.suffix == '.diff':
+            if file.suffix == suffix:
                 selected_targets.discard(file.stem)
         if len(selected_targets) != 0:
             raise SmolSyncException(f"Targets {', '.join(selected_targets)}"
@@ -155,9 +186,9 @@ def check(args: ArgsType):
     root, archive = read_path_for_targets(args)
 
     targets = load_targets(args)
+    make_images(targets, args.settings)
 
     for target in targets:
-        target.make_image()
         with (root / target.diff_name()).open('rb') as f:
             diff = FolderDiff.load(StructFile(f), target.root)
         print(f'Target {target.name}:')
@@ -174,9 +205,9 @@ def apply(args: ArgsType):
     data_root, archive = read_path_for_targets(args)
 
     targets = load_targets(args)
+    make_images(targets, args.settings)
 
     for target in targets:
-        target.make_image()
         target.data_root = RootPath(data_root / target.name)
         with data_root.joinpath(target.diff_name()).open('rb') as f:
             diff = FolderDiff.load(StructFile(f), target.root)
@@ -225,12 +256,13 @@ def read(args: ArgsType):
 
 
 status_action.set_defaults(func=status)
+compare_action.set_defaults(func=compare)
 save_action.set_defaults(func=save)
 read_action.set_defaults(func=read)
 check_action.set_defaults(func=check)
 apply_action.set_defaults(func=apply)
-args = parser.parse_args()
+parsed_args = parser.parse_args()
 try:
-    args.func(args)
+    parsed_args.func(parsed_args)
 except SmolSyncException as e:
     print(e.args)

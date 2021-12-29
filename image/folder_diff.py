@@ -180,7 +180,7 @@ class FolderDiff:
         folder_diffs = [FolderDiff._compare(folder[0], folder[1], hash_files) for folder in folders.values()]
         return cls(name, folder_diffs, file_diffs)
 
-    def print(self, line_start='', verbose=False, hide: Set[str] = '', hide_files: bool = False):
+    def print(self, line_start='', verbose=False, hide: Iterable[str] = '', hide_files: bool = False):
         print(f'{self.name}  {human_readable_size(self.copied_size)}'
               f'  {human_readable_size(self.change_in_size, plus=True)}')
 

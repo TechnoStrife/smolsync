@@ -26,7 +26,7 @@ def hash_file(path):
                 break
             sha1.update(data)
 
-    return sha1.hexdigest()
+    return sha1.digest()
 
 
 def human_readable_size(size, decimal_places=1, plus=False):

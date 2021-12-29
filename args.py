@@ -10,6 +10,7 @@ __all__ = [
     'save_action',
     'config_action',
     'status_action',
+    'compare_action',
     'read_action',
     'apply_action',
     'check_action',
@@ -48,6 +49,15 @@ status_action.add_argument('-q', action='store_true', help="don't print files", 
 status_action.add_argument('-H', help='hide specific operations', dest='hide')
 status_action.add_argument('--save', action='store_true',
                            help='save the current state of the target')
+
+compare_action = action.add_parser('compare')
+compare_action.add_argument('-v', '--verbose', action='store_true', help='show whole tree')
+compare_action.add_argument('-q', action='store_true', help="don't print files", dest='quiet')
+compare_action.add_argument('-H', help='hide specific operations', dest='hide')
+# compare_action.add_argument('--save', action='store_true',
+#                            help='save the current state of the target')
+compare_action.add_argument('path', action=RootPathAction, default=cwd,
+                            help='path to the directory with images')
 
 save_action = action.add_parser('save')
 save_action.add_argument('-v', '--verbose', action='store_true', help='show whole tree')

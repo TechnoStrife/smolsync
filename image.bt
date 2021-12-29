@@ -13,10 +13,13 @@
 
 typedef struct {
     int len;
-    char s[len];
+    if (len > 0)
+        char s[len];
 } str <read=read_STRING>;
 
 string read_STRING(local str &s) {
+    if (s.len == 0)
+        return "\"\"";
     local string res = "";
     SPrintf(res, "<%d> %s", s.len, s.s);
     return res;

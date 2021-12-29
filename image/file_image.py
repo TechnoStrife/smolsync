@@ -48,11 +48,8 @@ class FileImage:
         self.mod = file.read('I')[0]
         self.size = file.read('N')[0]
         self.created = file.read('d')[0]
-        self.hash = None
+        self.hash = file.file.read(20)
         self.copied_to = None
-        has_hash = file.read('?')[0]
-        if has_hash:
-            self.hash = file.file.read(40)
         return self
 
     def save(self, file: StructFile):
@@ -60,8 +57,5 @@ class FileImage:
         file.write('I', self.mod)
         file.write('N', self.size)
         file.write('d', self.created)
-        has_hash = self.hash is not None
-        file.write('?', has_hash)
-        if has_hash:
-            file.file.write(self.hash)
+        file.file.write(self.hash)
 

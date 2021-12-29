@@ -15,14 +15,14 @@ class RootPath(WindowsPath if os.name == 'nt' else PosixPath):
         return self._from_parts(self._parts[self._root_parts:])
 
     @classmethod
-    def _from_parts(cls, args, init=True):
-        res = super()._from_parts(args, init)
+    def _from_parts(cls, args):
+        res = super()._from_parts(args)
         res._root_parts = len(res._parts)
         return res
 
     @classmethod
-    def _from_parsed_parts(cls, drv, root, parts, init=True):
-        res = super()._from_parsed_parts(drv, root, parts, init)
+    def _from_parsed_parts(cls, drv, root, parts):
+        res = super()._from_parsed_parts(drv, root, parts)
         res._root_parts = len(res._parts)
         return res
 

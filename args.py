@@ -54,8 +54,8 @@ compare_action = action.add_parser('compare')
 compare_action.add_argument('-v', '--verbose', action='store_true', help='show whole tree')
 compare_action.add_argument('-q', action='store_true', help="don't print files", dest='quiet')
 compare_action.add_argument('-H', help='hide specific operations', dest='hide')
-# compare_action.add_argument('--save', action='store_true',
-#                            help='save the current state of the target')
+compare_action.add_argument('--copy-time', action='store_true', dest='save',
+                            help='copy modification time from image to files with matching hash')
 compare_action.add_argument('path', action=RootPathAction, default=cwd,
                             help='path to the directory with images')
 
@@ -64,6 +64,8 @@ save_action.add_argument('-v', '--verbose', action='store_true', help='show whol
 save_action.add_argument('-q', action='count', help="don't print files", dest='quiet')
 save_action.add_argument('-z', '--zip', help='save in zip file', action='store_true')
 # save_action.add_argument('-C', help='include copies', action='store_true')
+save_action.add_argument('--base', action=RootPathAction, default=None,
+                         help='base image to compare with')
 save_action.add_argument('path', action=RootPathAction,
                          help='path to save the diff')
 
@@ -81,6 +83,7 @@ apply_action.add_argument('path', action=RootPathAction, default=cwd,
 
 class ArgsType:
     settings: Path
+    base: Path
     targets: str
     verbose: Union[bool, int]
     quiet: bool

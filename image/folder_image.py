@@ -20,6 +20,24 @@ class FolderImage:
         self.size = sum(file.size for file in files) + sum(folder.size for folder in folders)
         self._dict: Optional[Dict[str, Union[FileImage, 'FolderImage']]] = None
 
+    def iter(self):
+        yield self
+        for file in self.files:
+            yield file
+        for folder in self.folders:
+            yield from folder.iter()
+
+    def iter_files(self):
+        for file in self.files:
+            yield file
+        for folder in self.folders:
+            yield from folder.iter_files()
+
+    def ignore(self, ignore_func: Callable[[Path], bool]):
+        self.files = list(filter(lambda f: not ignore_func(f.path), self.files))
+        for folder in self.folders:
+            folder.ignore(ignore_func)
+
     @classmethod
     def image_dir(cls, path: RootPath, ignore_func: Callable[[Path], bool]) -> 'FolderImage':
         self = cls(path.name, [], [])
@@ -112,6 +130,6 @@ class FolderImage:
                 return None
             if res._dict is None:
                 res._make_dict()
-            res = res._dict.get(part, None)
+            res = res._dict.get(part)
         return res
 

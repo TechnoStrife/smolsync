@@ -14,8 +14,17 @@ class HashStorage:
         self.files: Dict[HashStorage.Key, bytes] = {}
         self.hashes: Dict[bytes, HashStorage.Key] = {}
 
+    @staticmethod
+    def make_key(file: FileImage) -> 'HashStorage.Key':
+        return HashStorage.Key(file.path.from_root().as_posix(), file.mod, file.size)
+
+    def add_file(self, file: FileImage):
+        key = self.make_key(file)
+        self.files[key] = file.hash
+        self.hashes[file.hash] = key
+
     @classmethod
-    def load(cls, file: StructFile):
+    def load(cls, file: StructFile) -> 'HashStorage':
         self = cls()
         count = file.read('I')[0]
         for _ in range(count):
@@ -36,10 +45,16 @@ class HashStorage:
             file.write('N', key.size)
             file.file.write(file_hash)
 
+    @classmethod
+    def from_image(cls, image: FolderImage) -> 'HashStorage':
+        self = cls()
+        for file in image.iter_files():
+            self.add_file(file)
+        return self
+
     def _apply(self, image: FolderImage, output):
         for file in image.files:
-            key = self.Key(str(file.path.from_root()), file.mod, file.size)
-            file_hash = self.files.get(key, None)
+            file_hash = self.files.get(self.make_key(file))
             if file_hash is None:
                 output.append(file)
             else:
@@ -61,11 +76,9 @@ class HashStorage:
             if show_progress:
                 print(f'\r{i+1}/{len(files)} {file.path.from_root()}', end='')
             file.calc_hash()
-            key = self.Key(str(file.path.from_root()), file.mod, file.size)
-            self.files[key] = file.hash
-            self.hashes[file.hash] = key
+            self.add_file(file)
             size += file.size
-        if show_progress and size > 0:
-            dt = time() - t
+        dt = time() - t
+        if show_progress and size > 0 and dt > 0:
             print(f'\r{len(files)}   {human_readable_size(size)}'
                   f'   {dt:.1f}s   {human_readable_size(size / dt)}/s')

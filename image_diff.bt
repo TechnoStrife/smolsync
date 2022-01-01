@@ -13,13 +13,16 @@
 
 typedef struct {
     int len;
-    char s[len];
+    if (len > 0)
+        char s[len];
 } str <read=read_STRING>;
 
-wstring read_STRING(local str &s) {
+string read_STRING(local str &s) {
+    if (s.len == 0)
+        return "\"\"";
     local string res = "";
     SPrintf(res, "<%d> %s", s.len, s.s);
-    return StringToWString(res, CHARSET_UTF8);
+    return res;
 }
 
 string read_SIZE(local int64 size_i) {
@@ -51,9 +54,7 @@ typedef struct {
     time_t modified;
     int64 size <read=read_SIZE>;
     double created <read=read_double_time>;
-    uchar has_hash;
-    if (has_hash)
-        char hash[40];
+    char hash[20];
 }  File <read=read_FILE>;
 
 wstring read_FILE(local File &file) {

@@ -149,7 +149,7 @@ class FolderDiff:
     def _set_copied(self, deleted: HashFileDict):
         for file in self.files:
             if file.status == 'A':
-                copied_from = deleted.get(file.new.easy_hash(), None)
+                copied_from = deleted.get(file.new.easy_hash())
                 if copied_from is not None:
                     file.set_copied(copied_from)
         for folder in self.folders:
@@ -251,5 +251,5 @@ class FolderDiff:
                 return None
             if res._dict is None:
                 res._make_dict()
-            res = res._dict.get(part, None)
+            res = res._dict.get(part)
         return res

@@ -1,5 +1,6 @@
 import datetime
 import json
+import os
 import zipfile
 from io import BytesIO
 from pathlib import PurePath
@@ -12,6 +13,7 @@ from args import parser, save_action, status_action, read_action, \
     ArgsType, check_action, apply_action, compare_action
 from const import SETTINGS_NAME, SmolSyncException, Signatures
 from image import FolderImage, FolderDiff
+from image.hash_storage import HashStorage
 from summary.changes_summary import ChangesSummary
 from target import Target
 from util import RootPath, StructFile
@@ -43,25 +45,23 @@ def load_targets(args: ArgsType):
                 del settings[name]
 
     targets = [
-        Target(name, target_settings['root'], ignore_rules(target_settings.get('ignore', None)))
+        Target(name, path, target_settings['root'], ignore_rules(target_settings.get('ignore')))
         for name, target_settings in settings.items()
     ]
     for target in targets:
-        target.load_old_image(path)
+        target.load_old_image()
 
     return targets
 
 
-def make_images(targets: List[Target], settings_path):
+def make_images(targets: List[Target]):
     for target in targets:
-        target.load_hash_storage(settings_path)
-        target.make_image(show_progress=True)
-        target.save_hash_storage(settings_path)
+        target.make_image(use_hash_storage=True, show_progress=True)
 
 
 def status(args: ArgsType):
     targets = load_targets(args)
-    make_images(targets, args.settings)
+    make_images(targets)
 
     for target in targets:
         print(f'Target {target.name}:')
@@ -77,7 +77,7 @@ def status(args: ArgsType):
 
     if args.save:
         for target in targets:
-            filename = target.image_path(args.settings)
+            filename = target.image_path()
             target.image.save(StructFile(filename.open('wb'), str(filename)))
 
 
@@ -85,18 +85,31 @@ def compare(args: ArgsType):
     root, archive = read_path_for_targets(args, '.image')
 
     targets = load_targets(args)
-    make_images(targets, args.settings)
+    make_images(targets)
 
     for target in targets:
         with (root / target.image_name()).open('rb') as f:
             image = FolderImage.load(StructFile(f), target.root)
+        image.ignore(target.ignore.match_file)
 
         print(f'Target {target.name}:')
-        diff = FolderDiff.compare(target.image, image)
-        if not args.verbose and not diff.has_changes():
-            print('No changes')
+        if args.save:
+            hashes = HashStorage.from_image(image)
+            for file in target.image.iter_files():
+                old_meta = hashes.hashes.get(file.hash)
+                new_meta = target.hash_storage.hashes.get(file.hash)
+                if old_meta is not None and new_meta is not None:
+                    old_file = image[PurePath(old_meta.path)]
+                    new_file = target.image[PurePath(new_meta.path)]
+                    print(file.path)
+                    stat = os.stat(new_file.path)
+                    os.utime(new_file.path, None, ns=(stat.st_atime_ns, old_file.mod * 1_000_000_000))
         else:
-            diff.print(verbose=args.verbose, hide=args.hide, hide_files=args.quiet)
+            diff = FolderDiff.compare(target.image, image)
+            if not args.verbose and not diff.has_changes():
+                print('No changes')
+            else:
+                diff.print(verbose=args.verbose, hide=args.hide, hide_files=args.quiet)
 
     if archive:
         archive.close()
@@ -122,14 +135,26 @@ def save(args: ArgsType):
         archive = zipfile.ZipFile(args.path, 'w', zipfile.ZIP_DEFLATED)
 
     targets = load_targets(args)
-    make_images(targets, args.settings)
+    make_images(targets)
 
     for target in targets:
         print(f'Target {target.name}:')
-        if target.old_image is None:
-            print('No previously saved state')
-            return
-        diff = FolderDiff.compare(target.image, target.old_image)
+
+        if args.base is None:
+            old_image = target.old_image
+            if target.old_image is None:
+                print('No previously saved state')
+                continue
+        else:
+            image_file = args.base / target.image_name()
+            if not image_file.exists():
+                print('No base image')
+                continue
+            with image_file.open('rb') as f:
+                old_image = FolderImage.load(StructFile(f), target.root)
+            old_image.ignore(target.ignore.match_file)
+
+        diff = FolderDiff.compare(target.image, old_image)
         if not args.verbose and not diff.has_changes():
             print('No changes')
         else:
@@ -146,7 +171,7 @@ def save(args: ArgsType):
             diff.copy_modified_to(PurePath(target.name), archive.write)
         else:
             args.path.mkdir(parents=True, exist_ok=True)
-            diff_filename = target.diff_path(args.path)
+            diff_filename = target.diff_path()
             diff.save(StructFile(diff_filename.open('wb'), str(diff_filename)))
             diff.copy_modified_to(args.path / target.name)
 
@@ -186,7 +211,7 @@ def check(args: ArgsType):
     root, archive = read_path_for_targets(args)
 
     targets = load_targets(args)
-    make_images(targets, args.settings)
+    make_images(targets)
 
     for target in targets:
         with (root / target.diff_name()).open('rb') as f:
@@ -205,7 +230,7 @@ def apply(args: ArgsType):
     data_root, archive = read_path_for_targets(args)
 
     targets = load_targets(args)
-    make_images(targets, args.settings)
+    make_images(targets)
 
     for target in targets:
         target.data_root = RootPath(data_root / target.name)

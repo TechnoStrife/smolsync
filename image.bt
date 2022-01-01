@@ -54,9 +54,7 @@ typedef struct {
     time_t modified;
     int64 size <read=read_SIZE>;
     double created <read=read_double_time>;
-    uchar has_hash;
-    if (has_hash)
-        char hash[40];
+    char hash[20];
 }  File <read=read_FILE>;
 
 wstring read_FILE(local File &file) {

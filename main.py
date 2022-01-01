@@ -33,7 +33,7 @@ def load_targets(args: ArgsType):
     if not settings_file.exists() or not settings_file.is_file():
         raise SmolSyncException(f'No settings file: {settings_file}')
 
-    settings = json.loads(settings_file.read_text())
+    settings = json.loads(settings_file.read_text(encoding='utf-8'))
 
     if args.targets != 'all':
         selected_targets = set(args.targets.split(';'))

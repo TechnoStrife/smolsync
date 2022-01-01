@@ -34,7 +34,7 @@ class ChangesSummary:
         ]
 
         for file in diff.iter():
-            summary = FileSummary(file, target.image, target.root, target.data_root)
+            summary = FileSummary(file, target.image, target.root, target.data_dir())
             for task in self.tasks:
                 if task.condition(summary):
                     assert summary.task is None

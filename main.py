@@ -78,6 +78,11 @@ def status(args: ArgsType):
     if args.save:
         for target in targets:
             filename = target.image_path()
+            if filename.exists():
+                backup = target.settings_path / 'previous'
+                backup.mkdir(exist_ok=True)
+                backup /= target.image_name()
+                filename.rename(backup.with_stem(f'{target.name} {datetime.datetime.now().replace(microsecond=0)}'))
             target.image.save(StructFile(filename.open('wb'), str(filename)))
 
 
@@ -214,6 +219,7 @@ def check(args: ArgsType):
     make_images(targets)
 
     for target in targets:
+        target.data_root = root
         with (root / target.diff_name()).open('rb') as f:
             diff = FolderDiff.load(StructFile(f), target.root)
         print(f'Target {target.name}:')
@@ -233,7 +239,7 @@ def apply(args: ArgsType):
     make_images(targets)
 
     for target in targets:
-        target.data_root = RootPath(data_root / target.name)
+        target.data_root = RootPath(data_root)
         with data_root.joinpath(target.diff_name()).open('rb') as f:
             diff = FolderDiff.load(StructFile(f), target.root)
         print(f'Target {target.name}:')

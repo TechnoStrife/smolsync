@@ -35,6 +35,7 @@ class Task(list):
                 start = print_tree_line('', file is last)
                 self.print_file(file, start)
             self.run_file(file)
+            print()
 
     def run_file(self, file: FileSummary):
         pass

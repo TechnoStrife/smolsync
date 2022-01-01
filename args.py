@@ -70,12 +70,12 @@ save_action.add_argument('path', action=RootPathAction,
                          help='path to save the diff')
 
 check_action = action.add_parser('check')
-check_action.add_argument('-v', '--verbose', action='count', help='show all mismatches')
+check_action.add_argument('-v', '--verbose', default=0, action='count', help='show all mismatches')
 check_action.add_argument('path', action=RootPathAction, default=cwd,
                           help='path to save the diff or the directory with the diffs')
 
 apply_action = action.add_parser('apply')
-apply_action.add_argument('-v', '--verbose', action='count', help='show all mismatches')
+apply_action.add_argument('-v', '--verbose', default=0, action='count', help='show all mismatches')
 apply_action.add_argument('--blind', action='store_true', help='ignore all errors and try to do the best ')
 apply_action.add_argument('path', action=RootPathAction, default=cwd,
                           help='path to save the diff or the directory with the diffs')

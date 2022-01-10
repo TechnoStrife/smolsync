@@ -176,7 +176,7 @@ def save(args: ArgsType):
             diff.copy_modified_to(PurePath(target.name), archive.write)
         else:
             args.path.mkdir(parents=True, exist_ok=True)
-            diff_filename = target.diff_path()
+            diff_filename = target.diff_path(args.path)
             diff.save(StructFile(diff_filename.open('wb'), str(diff_filename)))
             diff.copy_modified_to(args.path / target.name)
 

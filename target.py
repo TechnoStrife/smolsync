@@ -32,8 +32,8 @@ class Target:
     def diff_name(self) -> str:
         return f'{self.name}.diff'
 
-    def diff_path(self) -> Path:
-        return self.settings_path / self.diff_name()
+    def diff_path(self, path: Path) -> Path:
+        return path / self.diff_name()
 
     def hash_storage_name(self) -> str:
         return f'{self.name}.hash'

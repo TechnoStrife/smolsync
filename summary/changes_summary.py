@@ -46,7 +46,12 @@ class ChangesSummary:
             task.run(task.verbosity <= verbose)
 
     def print(self, verbose=False):
+        printed = False
         for task in self.tasks:
-            if task.verbosity <= verbose:
+            if task.verbosity <= verbose and len(task) > 0:
+                printed = True
                 task.print_list()
+        if not printed:
+            print('Everything is OK, tasks to be performed:',
+                  ', '.join(task.header for task in self.tasks if len(task) > 0))
 

@@ -82,7 +82,8 @@ def status(args: ArgsType):
                 backup = target.settings_path / 'previous'
                 backup.mkdir(exist_ok=True)
                 backup /= target.image_name()
-                filename.rename(backup.with_stem(f'{target.name} {datetime.datetime.now().replace(microsecond=0)}'))
+                time = datetime.datetime.now().replace(microsecond=0)
+                filename.rename(backup.with_stem(f'{target.name} {str(time).replace(":", "-")}'))
             target.image.save(StructFile(filename.open('wb'), str(filename)))
 
 
